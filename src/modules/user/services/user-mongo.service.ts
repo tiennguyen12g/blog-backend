@@ -117,6 +117,99 @@ export class UserMongoService {
   }
 
   /**
+   * Update user profile
+   */
+  async mongo_updateProfile(userId: string, profileData: any): Promise<any> {
+    try {
+      console.log('🔵 [mongo_updateProfile] Updating profile for user ID:', userId);
+      console.log('🔵 [mongo_updateProfile] Profile data:', profileData);
+
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        console.log('❌ [mongo_updateProfile] User not found');
+        throw new Error('User not found');
+      }
+
+      // Update profile fields (merge with existing profile)
+      if (!user.profile) {
+        user.profile = {} as any;
+      }
+
+      // Update only provided fields
+      if (profileData.firstName !== undefined) {
+        (user.profile as any).firstName = profileData.firstName;
+      }
+      if (profileData.lastName !== undefined) {
+        (user.profile as any).lastName = profileData.lastName;
+      }
+      if (profileData.bio !== undefined) {
+        (user.profile as any).bio = profileData.bio;
+      }
+      if (profileData.avatar !== undefined) {
+        (user.profile as any).avatar = profileData.avatar;
+      }
+      if (profileData.phoneNumber !== undefined) {
+        (user.profile as any).phoneNumber = profileData.phoneNumber;
+      }
+      if (profileData.sex !== undefined) {
+        (user.profile as any).sex = profileData.sex;
+      }
+      if (profileData.address !== undefined) {
+        (user.profile as any).address = profileData.address;
+      }
+      if (profileData.location !== undefined) {
+        (user.profile as any).location = profileData.location;
+      }
+      if (profileData.interests !== undefined) {
+        (user.profile as any).interests = profileData.interests;
+      }
+      if (profileData.visaPoints !== undefined) {
+        // Initialize visaPoints if it doesn't exist
+        if (!(user.profile as any).visaPoints) {
+          (user.profile as any).visaPoints = {};
+        }
+        // Calculate total points (base points WITHOUT state nomination bonuses)
+        // State nomination points are visa-specific and added separately in the frontend
+        const points = profileData.visaPoints;
+        const totalPoints = 
+          (points.agePoints || 0) +
+          (points.englishLanguagePoints || 0) +
+          (points.australiaExperiencePoints || 0) +
+          (points.overseasExperiencePoints || 0) +
+          (points.qualificationsPoints || 0) +
+          (points.australianStudyPoints || 0) +
+          (points.specialistEducationPoints || 0) +
+          (points.regionalStudyPoints || 0) +
+          (points.professionalYearPoints || 0) +
+          (points.communityLanguagePoints || 0) +
+          (points.partnerSkillsPoints || 0);
+          // Exclude stateNominationPoints190 and regionalSponsorshipPoints491
+          // These are visa-specific bonuses added separately per visa type
+        
+        // Update visa points fields
+        Object.assign((user.profile as any).visaPoints, profileData.visaPoints, {
+          totalPoints,
+          lastUpdated: new Date(),
+        });
+      }
+
+      // Mark profile as modified for Mongoose to save nested changes
+      user.markModified('profile');
+
+      const savedUser = await user.save();
+      const { password, ...userWithoutPassword } = savedUser.toObject();
+
+      return {
+        ...userWithoutPassword,
+        _id: userWithoutPassword._id.toString(),
+      };
+    } catch (error) {
+      console.error('❌ [mongo_updateProfile] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Find user by email
    */
   async findByEmail(email: string): Promise<UserDocument | null> {

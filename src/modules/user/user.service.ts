@@ -40,5 +40,12 @@ export class UserService {
   async getBaseUserData({ existingUser, network_name }: { existingUser: User_Type; network_name?: string }) {
     return this.userMongoService.mongo_get_baseUserData({ existingUser, network_name });
   }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userId: string, profileData: any) {
+    return this.userMongoService.mongo_updateProfile(userId, profileData);
+  }
 }
 

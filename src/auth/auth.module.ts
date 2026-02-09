@@ -9,6 +9,8 @@ import { UserModule } from '../modules/user/user.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RestrictedGuard } from './restricted.guard';
+import { RolesGuard } from './roles.guard';
 import { Auth2FAModule } from './2fa/2fa.module';
 
 @Module({
@@ -29,13 +31,15 @@ import { Auth2FAModule } from './2fa/2fa.module';
     AuthService,
     JwtStrategy,
     LocalStrategy,
+    RestrictedGuard,
+    RolesGuard,
     // {
     //   provide: APP_GUARD,
     //   useClass: JwtAuthGuard,
     // },
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, UserModule, RestrictedGuard, RolesGuard], // Export guards and UserModule
 })
 export class AuthModule {}
 

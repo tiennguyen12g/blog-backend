@@ -58,24 +58,36 @@ export class AuthController {
         network_name: req.body?.network_name,
       });
       if (getUserData.status === 'Success') {
+        // Set cookies with proper settings for HTTPS through nginx
         response.cookie('access_token', access_token, {
           httpOnly: true,
-          // secure: true,
+          secure: true, // Required for HTTPS
+          sameSite: 'none', // Required for cross-origin requests through nginx
           maxAge: 15 * 60 * 1000, // 15 minutes
+          path: '/',
         });
 
         response.cookie('refresh_token', refresh_token, {
           httpOnly: true,
-          // secure: true,
+          secure: true, // Required for HTTPS
+          sameSite: 'none', // Required for cross-origin requests through nginx
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          path: '/',
         });
 
+        console.log('✅ [Login] Cookies set successfully');
+        console.log('✅ [Login] Returning user data:', getUserData);
         return response.status(HttpStatus.OK).json(getUserData);
       } else {
         return response.status(HttpStatus.BAD_REQUEST).json(getUserData);
       }
     } catch (error) {
-      console.log('Login error:', error);
+      console.error('Login error:', error);
+      return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'Failed',
+        message: error.message || 'An error occurred during login',
+        error: error,
+      });
     }
   }
 

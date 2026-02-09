@@ -33,6 +33,12 @@ export class AuthService {
     if (!user) return null;
 
     const userObj = user.toObject();
+    
+    // Check if user is banned (cannot login)
+    if (userObj.isBan === 'banned') {
+      throw new UnauthorizedException('Your account has been banned. You cannot login.');
+    }
+
     const isPasswordMatch = await validateUserPassword({ password: password, hash: userObj.password });
     
     if (isPasswordMatch) {
