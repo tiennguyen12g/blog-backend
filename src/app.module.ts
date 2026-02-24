@@ -9,6 +9,7 @@ import { ArticleModule } from './modules/article/article.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { MemoryModule } from './modules/memory/memory.module';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
+import { NoteModule } from './modules/note/note.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SystemConfigModule } from './modules/system-config/system-config.module
     FinanceModule,
     MemoryModule,
     SystemConfigModule,
+    NoteModule,
   ],
   controllers: [AppController],
   providers: [AppService],

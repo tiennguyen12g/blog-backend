@@ -33,14 +33,22 @@ async function bootstrap() {
   const port = process.env.PORT || 4000;
   const host = process.env.HOST || '0.0.0.0';
   const originURL =  [
-  'http://localhost:5150', 
-  'https://localhost:5150', 
-  'http://127.0.0.1:5150',
-  'https://127.0.0.1:5150',
-  "https://localhost:443",        // Nginx HTTPS proxy
-  "https://127.0.0.1:443",        // Nginx HTTPS proxy (localhost IP)
-  // 172.16.255.* subnet is handled dynamically in CORS origin function below
-];
+    // Production domains with SSL
+    'https://australiastorys.com',
+    'https://www.australiastorys.com',
+    // HTTP versions (for redirects, though HTTPS should be used)
+    'http://australiastorys.com',
+    'http://www.australiastorys.com',
+    // Local development
+    'http://localhost:5150', 
+    'https://localhost:5150', 
+    'http://127.0.0.1:5150',
+    'https://127.0.0.1:5150',
+    // Nginx HTTPS proxy
+    "https://localhost:443",
+    "https://127.0.0.1:443",
+    // 172.16.255.* subnet is handled dynamically in CORS origin function below
+  ];
   
   // Function to check if origin matches allowed patterns (including 172.16.255.* subnet)
   const corsOriginFunction = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -51,6 +59,13 @@ async function bootstrap() {
 
     // Check exact matches in originURL array
     if (originURL.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Check if origin matches production domain (with or without www, http or https)
+    // Pattern: http://australiastorys.com, https://australiastorys.com, http://www.australiastorys.com, https://www.australiastorys.com
+    const productionDomainPattern = /^https?:\/\/(www\.)?australiastorys\.com$/;
+    if (productionDomainPattern.test(origin)) {
       return callback(null, true);
     }
 
@@ -86,6 +101,7 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
   console.log('✅ [Bootstrap] CORS enabled (with 172.16.255.* subnet support)');
+  console.log('✅ [Bootstrap] Production domains allowed: australiastorys.com, www.australiastorys.com');
   
   // Logging middleware - log request details including cookies
   // This must come AFTER cookieParser so cookies are parsed
