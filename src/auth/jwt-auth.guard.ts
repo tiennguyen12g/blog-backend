@@ -28,7 +28,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
       return true;
     }
     // const incomingData = context.getArgs()incomingData[0].cookies
-    console.log('1. JwtAuthGuard canActivate triggered' );
+    // console.log('1. JwtAuthGuard canActivate triggered' );
     // console.log('body', incomingData[0].body);
     return super.canActivate(context); // Delegates to the AuthGuard class (which uses Passport)
   }

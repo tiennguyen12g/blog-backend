@@ -70,10 +70,10 @@ export class ArticleUploadController {
 
         // Return relative URL - browser will automatically resolve using current origin
         // Works in both development and production without hardcoding domain
-        // Development: https://localhost:443/blog/uploads/articles/filename
-        // Production: https://yourdomain.com/blog/uploads/articles/filename
-        // Note: For blog project, images are served at /blog/uploads/articles/ (Nginx routes this)
-        const url = `/blog/uploads/articles/${filename}`;
+        // Development: https://localhost:443/uploads/articles/filename
+        // Production: https://yourdomain.com/uploads/articles/filename
+        // Note: Images are served at /uploads/articles/ (Nginx routes this)
+        const url = `/uploads/articles/${filename}`;
 
         return {
           url,

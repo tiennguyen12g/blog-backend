@@ -38,7 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       // You can add additional validation logic here
       // console.log('2.JwtStrategy run validate and get user data parse', payload);
       // return { userId: payload.sub, email: payload.email, role: payload.role };
-      console.log('payload', payload);
+      // console.log('payload', payload);
       return payload;
   }
 }

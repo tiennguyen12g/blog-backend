@@ -14,7 +14,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     /**
      * email and password receive from super.
      */
-    console.log('2. LocalStrategy validate', email);
+    // console.log('2. LocalStrategy validate', email);
     
     const user = await this.authService.validateUser_By_Password({email: email, password:password});
     if (!user) {
@@ -26,7 +26,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
         message: 'Login failed. Email or password is incorrect.',
       });
     }
-    console.log('5. user data', user);
+    // console.log('5. user data', user);
     return user;
   }
 }
