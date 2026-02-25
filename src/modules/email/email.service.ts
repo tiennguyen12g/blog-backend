@@ -37,22 +37,34 @@ export class EmailService {
       },
       // Custom socket factory to force IPv4
       getSocket: (options: any, callback: any) => {
-        // Resolve hostname to IPv4 address
-        dns.lookup(host, { family: 4 }, (err, address) => {
+        // Resolve hostname to IPv4 address first
+        dns.lookup(host, { family: 4, all: false }, (err, address, family) => {
           if (err) {
             this.logger.error(`❌ [EmailService] DNS lookup failed for ${host}:`, err);
+            // Fallback to default connection if DNS fails
             return callback(err);
           }
           
-          this.logger.log(`🔵 [EmailService] Resolved ${host} to IPv4: ${address}`);
+          this.logger.log(`🔵 [EmailService] Resolved ${host} to IPv4: ${address} (family: ${family})`);
+          
+          // Verify it's actually IPv4
+          if (family !== 4) {
+            this.logger.warn(`⚠️ [EmailService] DNS returned non-IPv4 address, trying again...`);
+            // Try again with explicit family 4
+            return dns.lookup(host, { family: 4 }, (err2, address2) => {
+              if (err2) {
+                this.logger.error(`❌ [EmailService] Second DNS lookup failed:`, err2);
+                return callback(err2);
+              }
+              this.logger.log(`🔵 [EmailService] Resolved ${host} to IPv4: ${address2}`);
+              const socket = net.createConnection(port, address2, callback);
+              return socket;
+            });
+          }
           
           // Create socket with resolved IPv4 address
-          const socket = net.createConnection({
-            host: address,
-            port: port,
-            family: 4,
-          }, callback);
-          
+          // Use net.createConnection(port, host, callback) format for better compatibility
+          const socket = net.createConnection(port, address, callback);
           return socket;
         });
       },
