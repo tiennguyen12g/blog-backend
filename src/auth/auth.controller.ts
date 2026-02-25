@@ -250,8 +250,28 @@ export class AuthController {
   @Public()
   @Get('google')
   @UseGuards(GoogleAuthGuard)
-  async googleAuth() {
+  async googleAuth(@Request() req: any) {
     // Guard redirects to Google
+    // This endpoint should redirect to Google's OAuth page
+    // If we reach here without redirect, there's an issue
+    console.log('🔵 [Google OAuth] Initiate login endpoint called');
+    console.log('🔵 [Google OAuth] Request path:', req.path);
+    console.log('🔵 [Google OAuth] Request URL:', req.url);
+    console.log('🔵 [Google OAuth] Request host:', req.headers.host);
+    console.log('🔵 [Google OAuth] Request origin:', req.headers.origin);
+  }
+  
+  /**
+   * Test endpoint to verify routing is working
+   */
+  @Public()
+  @Get('google/test')
+  async googleTest() {
+    return {
+      status: 'Success',
+      message: 'Google OAuth route is accessible',
+      timestamp: new Date().toISOString(),
+    };
   }
 
   /**

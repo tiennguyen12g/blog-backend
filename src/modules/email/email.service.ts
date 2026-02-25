@@ -9,7 +9,9 @@ export class EmailService {
 
   constructor(private configService: ConfigService) {
     // Initialize Nodemailer transporter
-    this.transporter = nodemailer.createTransport({
+    // Force IPv4 by using family: 4 to avoid IPv6 connection issues
+    // Use type assertion to allow socket options that force IPv4
+    const transportConfig = {
       host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
       port: parseInt(this.configService.get<string>('MAIL_PORT') || '587'),
       secure: false, // true for 465, false for other ports
@@ -17,7 +19,20 @@ export class EmailService {
         user: this.configService.get<string>('MAIL_USER'),
         pass: this.configService.get<string>('MAIL_PASS'), // Gmail App Password
       },
-    });
+      // Socket options to force IPv4 connection
+      // This prevents IPv6 connection errors (ENETUNREACH)
+      // Note: socket.family is not in the TypeScript types but is supported at runtime
+      socket: {
+        family: 4, // Use IPv4 only
+      },
+      // Additional connection options for better reliability
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
+    };
+    
+    // Type assertion to allow socket options (not in TypeScript types but supported by nodemailer)
+    this.transporter = nodemailer.createTransport(transportConfig as any);
 
     // Verify connection
     this.transporter.verify((error, success) => {
