@@ -12,12 +12,15 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RestrictedGuard } from './restricted.guard';
 import { RolesGuard } from './roles.guard';
 import { Auth2FAModule } from './2fa/2fa.module';
+import { EmailModule } from '../modules/email/email.module';
+import { GoogleStrategy } from './google.strategy';
 
 @Module({
   imports: [
     UserModule,
     PassportModule,
     Auth2FAModule,
+    EmailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -31,6 +34,7 @@ import { Auth2FAModule } from './2fa/2fa.module';
     AuthService,
     JwtStrategy,
     LocalStrategy,
+    GoogleStrategy,
     RestrictedGuard,
     RolesGuard,
     // {

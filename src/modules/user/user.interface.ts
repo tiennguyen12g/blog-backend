@@ -31,6 +31,7 @@ export const User_ProfileUpdate_Schema = z.object({
   address: z.string().optional(), // Simple string address for blog
   location: z.string().optional(),
   interests: z.array(z.string()).optional(),
+  currency: z.string().optional(), // User's preferred currency (e.g., VND, USD, AUD)
   visaPoints: z.object({
     agePoints: z.number().min(0).max(30).optional(),
     englishLanguagePoints: z.number().min(0).max(20).optional(),
@@ -112,6 +113,7 @@ export type User_Type = {
     };
     location?: string;
     interests?: string[];
+    currency?: string; // User's preferred currency (e.g., VND, USD, AUD)
     socialLinks?: {
       facebook?: string;
       instagram?: string;
@@ -146,6 +148,11 @@ export type User_Type = {
   isBan?: 'none' | 'restricted' | 'banned';
   isActive?: boolean;
   lastLoginAt?: Date;
+  emailVerified?: boolean;
+  emailVerificationToken?: string;
+  emailVerificationTokenExpiry?: Date;
+  passwordResetToken?: string;
+  passwordResetTokenExpiry?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -157,6 +164,7 @@ export type User_Type = {
  */
 export interface User_RegisterOutput_Type {
   message: string;
+  status?: 'Success' | 'Failed';
   user?: {
     email: string;
     role: string;

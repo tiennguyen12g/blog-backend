@@ -5,6 +5,7 @@ import { User, UserDocument } from '../user.schema';
 import { User_Register_Type, User_Login_Type, User_Type, User_RegisterOutput_Type } from '../user.interface';
 import { hashPassword, validateUserPassword } from '../../../utils/bcryptPassword';
 import { ResponseData } from '../../../global/GlobalResponseData';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UserMongoService {
@@ -20,18 +21,26 @@ export class UserMongoService {
       if (existingUser) {
         return {
           message: 'User with this email already exists',
-          status: 'Failed',
-        } as any;
+          status: 'Failed' as const,
+        };
       }
 
       // Hash password
       const hashedPassword = await hashPassword(registerData.password);
+
+      // Generate email verification token
+      const verificationToken = uuidv4();
+      const verificationTokenExpiry = new Date();
+      verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
 
       // Create new user
       const newUser = new this.userModel({
         email: registerData.email,
         password: hashedPassword,
         role: 'user',
+        emailVerified: false,
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpiry: verificationTokenExpiry,
       });
 
       const savedUser = await newUser.save();
@@ -39,20 +48,20 @@ export class UserMongoService {
 
       return {
         message: 'Create account successful',
-        status: 'Success',
+        status: 'Success' as const,
         user: {
           email: userWithoutPassword.email,
           role: userWithoutPassword.role,
           _id: userWithoutPassword._id.toString(),
         },
-      } as any;
+      };
     } catch (error) {
       if (error.code === 11000) {
         // Duplicate key error
         return {
           message: 'User with this email already exists',
-          status: 'Failed',
-        } as any;
+          status: 'Failed' as const,
+        };
       }
       throw error;
     }
@@ -163,6 +172,9 @@ export class UserMongoService {
       if (profileData.interests !== undefined) {
         (user.profile as any).interests = profileData.interests;
       }
+      if (profileData.currency !== undefined) {
+        (user.profile as any).currency = profileData.currency.toUpperCase();
+      }
       if (profileData.visaPoints !== undefined) {
         // Initialize visaPoints if it doesn't exist
         if (!(user.profile as any).visaPoints) {
@@ -217,10 +229,238 @@ export class UserMongoService {
   }
 
   /**
+   * Verify email with token
+   */
+  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const user = await this.userModel.findOne({
+        emailVerificationToken: token,
+        emailVerificationTokenExpiry: { $gt: new Date() }, // Token not expired
+      }).exec();
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'Invalid or expired verification token',
+        };
+      }
+
+      if (user.emailVerified) {
+        return {
+          success: false,
+          message: 'Email already verified',
+        };
+      }
+
+      // Mark email as verified and clear token
+      user.emailVerified = true;
+      user.emailVerificationToken = undefined;
+      user.emailVerificationTokenExpiry = undefined;
+      await user.save();
+
+      return {
+        success: true,
+        message: 'Email verified successfully',
+      };
+    } catch (error) {
+      console.error('❌ [verifyEmail] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resend verification email (generate new token)
+   */
+  async resendVerificationToken(email: string): Promise<{ success: boolean; token?: string; message: string }> {
+    try {
+      const user = await this.userModel.findOne({ email }).exec();
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      if (user.emailVerified) {
+        return {
+          success: false,
+          message: 'Email already verified',
+        };
+      }
+
+      // Generate new verification token
+      const verificationToken = uuidv4();
+      const verificationTokenExpiry = new Date();
+      verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
+
+      user.emailVerificationToken = verificationToken;
+      user.emailVerificationTokenExpiry = verificationTokenExpiry;
+      await user.save();
+
+      return {
+        success: true,
+        token: verificationToken,
+        message: 'Verification token generated',
+      };
+    } catch (error) {
+      console.error('❌ [resendVerificationToken] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate password reset token
+   */
+  async generatePasswordResetToken(email: string): Promise<{ success: boolean; token?: string; message: string }> {
+    try {
+      const user = await this.userModel.findOne({ email }).exec();
+
+      if (!user) {
+        // Don't reveal if user exists or not (security best practice)
+        return {
+          success: true, // Return success even if user doesn't exist
+          message: 'If an account exists with this email, a password reset link has been sent',
+        };
+      }
+
+      // Generate reset token
+      const resetToken = uuidv4();
+      const resetTokenExpiry = new Date();
+      resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // 1 hour expiry
+
+      user.passwordResetToken = resetToken;
+      user.passwordResetTokenExpiry = resetTokenExpiry;
+      await user.save();
+
+      return {
+        success: true,
+        token: resetToken,
+        message: 'Password reset token generated',
+      };
+    } catch (error) {
+      console.error('❌ [generatePasswordResetToken] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset password with token
+   */
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const user = await this.userModel.findOne({
+        passwordResetToken: token,
+        passwordResetTokenExpiry: { $gt: new Date() }, // Token not expired
+      }).exec();
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'Invalid or expired reset token',
+        };
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password and clear reset token
+      user.password = hashedPassword;
+      user.passwordResetToken = undefined;
+      user.passwordResetTokenExpiry = undefined;
+      await user.save();
+
+      return {
+        success: true,
+        message: 'Password reset successfully',
+      };
+    } catch (error) {
+      console.error('❌ [resetPassword] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Find user by ID
    */
   async findById(id: string): Promise<UserDocument | null> {
     return this.userModel.findById(id).exec();
+  }
+
+  /**
+   * Create or find user from Google OAuth
+   * Google users don't need email verification (Google already verified)
+   */
+  async createOrFindGoogleUser(googleUser: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    picture?: string;
+  }): Promise<User_Type> {
+    try {
+      // Check if user already exists
+      let user = await this.userModel.findOne({ email: googleUser.email }).exec();
+
+      if (user) {
+        // User exists - update emailVerified if not already verified
+        if (!user.emailVerified) {
+          user.emailVerified = true;
+          user.emailVerificationToken = undefined;
+          user.emailVerificationTokenExpiry = undefined;
+          await user.save();
+        }
+
+        // Update profile if Google provides more info
+        if (!user.profile) {
+          user.profile = {} as any;
+        }
+        if (googleUser.firstName && !(user.profile as any).firstName) {
+          (user.profile as any).firstName = googleUser.firstName;
+        }
+        if (googleUser.lastName && !(user.profile as any).lastName) {
+          (user.profile as any).lastName = googleUser.lastName;
+        }
+        if (googleUser.picture && !(user.profile as any).avatar) {
+          (user.profile as any).avatar = googleUser.picture;
+        }
+        user.markModified('profile');
+        await user.save();
+
+        const { password, ...userWithoutPassword } = user.toObject();
+        return {
+          ...userWithoutPassword,
+          _id: userWithoutPassword._id.toString(),
+        } as User_Type;
+      }
+
+      // Create new user - email is already verified by Google
+      // Set default password for OAuth users (they won't use it, but backend requires it)
+      const defaultPassword = '12345678';
+      const hashedPassword = await hashPassword(defaultPassword);
+      
+      const newUser = new this.userModel({
+        email: googleUser.email,
+        password: hashedPassword, // Default password for OAuth users
+        role: 'user',
+        emailVerified: true, // Google already verified
+        profile: {
+          firstName: googleUser.firstName,
+          lastName: googleUser.lastName,
+          avatar: googleUser.picture,
+        },
+      });
+
+      const savedUser = await newUser.save();
+      const { password, ...userWithoutPassword } = savedUser.toObject();
+
+      return {
+        ...userWithoutPassword,
+        _id: userWithoutPassword._id.toString(),
+      } as User_Type;
+    } catch (error) {
+      console.error('❌ [createOrFindGoogleUser] Error:', error);
+      throw error;
+    }
   }
 
   /**

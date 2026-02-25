@@ -169,6 +169,9 @@ class ProfileSchema {
 
   @Prop({ type: VisaPointsSchema, _id: false })
   visaPoints?: VisaPointsSchema;
+
+  @Prop({ type: String, default: 'VND', trim: true, uppercase: true })
+  currency?: string; // User's preferred currency (e.g., VND, USD, AUD)
 }
 
 // ==================== Main User Schema ====================
@@ -208,6 +211,23 @@ export class User {
 
   @Prop({ type: Date })
   lastLoginAt?: Date;
+
+  // Email verification fields
+  @Prop({ type: Boolean, default: false })
+  emailVerified?: boolean;
+
+  @Prop({ type: String })
+  emailVerificationToken?: string;
+
+  @Prop({ type: Date })
+  emailVerificationTokenExpiry?: Date;
+
+  // Password reset fields
+  @Prop({ type: String })
+  passwordResetToken?: string;
+
+  @Prop({ type: Date })
+  passwordResetTokenExpiry?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

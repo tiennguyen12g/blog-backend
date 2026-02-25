@@ -47,5 +47,45 @@ export class UserService {
   async updateProfile(userId: string, profileData: any) {
     return this.userMongoService.mongo_updateProfile(userId, profileData);
   }
+
+  /**
+   * Verify email with token
+   */
+  async verifyEmail(token: string) {
+    return this.userMongoService.verifyEmail(token);
+  }
+
+  /**
+   * Resend verification email
+   */
+  async resendVerificationToken(email: string) {
+    return this.userMongoService.resendVerificationToken(email);
+  }
+
+  /**
+   * Generate password reset token
+   */
+  async generatePasswordResetToken(email: string) {
+    return this.userMongoService.generatePasswordResetToken(email);
+  }
+
+  /**
+   * Reset password with token
+   */
+  async resetPassword(token: string, newPassword: string) {
+    return this.userMongoService.resetPassword(token, newPassword);
+  }
+
+  /**
+   * Create or find user from Google OAuth
+   */
+  async createOrFindGoogleUser(googleUser: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    picture?: string;
+  }) {
+    return this.userMongoService.createOrFindGoogleUser(googleUser);
+  }
 }
 

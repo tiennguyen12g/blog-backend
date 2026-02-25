@@ -37,6 +37,18 @@ export enum ExpenseCategory {
   INSURANCE = 'insurance',
   ENTERTAINMENT = 'entertainment',
   SHOPPING = 'shopping',
+  TAX = 'tax',
+  HOBBIES = 'hobbies',
+  PERSONAL_CARE = 'personal_care',
+  CLOTHING = 'clothing',
+  SPORTS = 'sports',
+  BEAUTY = 'beauty',
+  ALCOHOL = 'alcohol',
+  TRAVEL = 'travel',
+  REPAIR = 'repair',
+  GIFT = 'gift',
+  DONATE = 'donate',
+  LOTTERY = 'lottery',
   OTHER_EXPENSE = 'other_expense',
 }
 
