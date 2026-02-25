@@ -246,19 +246,16 @@ export class AuthController {
 
   /**
    * Google OAuth - Initiate login
+   * The guard will automatically redirect to Google's OAuth page
    */
   @Public()
   @Get('google')
   @UseGuards(GoogleAuthGuard)
-  async googleAuth(@Request() req: any) {
-    // Guard redirects to Google
-    // This endpoint should redirect to Google's OAuth page
-    // If we reach here without redirect, there's an issue
-    console.log('🔵 [Google OAuth] Initiate login endpoint called');
-    console.log('🔵 [Google OAuth] Request path:', req.path);
-    console.log('🔵 [Google OAuth] Request URL:', req.url);
-    console.log('🔵 [Google OAuth] Request host:', req.headers.host);
-    console.log('🔵 [Google OAuth] Request origin:', req.headers.origin);
+  async googleAuth() {
+    // This method should never be reached - the guard redirects to Google
+    // If we reach here, there's a configuration issue
+    console.log('⚠️ [Google OAuth] Method body reached - guard should have redirected');
+    throw new Error('Google OAuth guard failed to redirect');
   }
   
   /**
@@ -267,9 +264,24 @@ export class AuthController {
   @Public()
   @Get('google/test')
   async googleTest() {
+    console.log('✅ [Google OAuth Test] Route is accessible');
     return {
       status: 'Success',
       message: 'Google OAuth route is accessible',
+      timestamp: new Date().toISOString(),
+      route: '/api/v1/auth/google/test',
+    };
+  }
+  
+  /**
+   * Simple health check for auth routes
+   */
+  @Public()
+  @Get('health')
+  async healthCheck() {
+    return {
+      status: 'Success',
+      message: 'Auth routes are working',
       timestamp: new Date().toISOString(),
     };
   }
