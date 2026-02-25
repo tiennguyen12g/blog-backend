@@ -25,8 +25,43 @@ export class EmailService {
     const host = this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com';
     const port = parseInt(this.configService.get<string>('MAIL_PORT') || '587');
     
-    // Initialize Nodemailer transporter
-    // Use a custom getSocket to force IPv4 connections
+    // Known Gmail SMTP IP addresses (IPv4) - use these if DNS is hijacked
+    // These are common Gmail SMTP server IPs that should work
+    const gmailSMTPIPs = [
+      '74.125.200.108',  // Gmail SMTP server
+      '74.125.200.109',
+      '173.194.76.108',
+      '173.194.76.109',
+    ];
+    
+    // Check if DNS is hijacked by resolving and validating the IP
+    const checkAndResolveGmailSMTP = (callback: (err: Error | null, address?: string) => void) => {
+      dns.lookup(host, { family: 4 }, (err, address) => {
+        if (err) {
+          this.logger.warn(`⚠️ [EmailService] DNS lookup failed, using known Gmail SMTP IP`);
+          return callback(null, gmailSMTPIPs[0]);
+        }
+        
+        // Check if the resolved IP is a valid Gmail SMTP IP
+        // Valid Gmail IPs typically start with: 74.125, 173.194, 108.177, 172.217, 142.250
+        const isValidGmailIP = address.startsWith('74.125.') || 
+                               address.startsWith('173.194.') || 
+                               address.startsWith('108.177.') ||
+                               address.startsWith('172.217.') ||
+                               address.startsWith('142.250.');
+        
+        if (isValidGmailIP) {
+          this.logger.log(`✅ [EmailService] Resolved ${host} to valid Gmail IP: ${address}`);
+          return callback(null, address);
+        } else {
+          // DNS is hijacked - use known Gmail SMTP IP
+          this.logger.warn(`⚠️ [EmailService] DNS returned invalid IP (${address}), using known Gmail SMTP IP: ${gmailSMTPIPs[0]}`);
+          return callback(null, gmailSMTPIPs[0]);
+        }
+      });
+    };
+    
+    // Initialize Nodemailer transporter with custom socket factory
     this.transporter = nodemailer.createTransport({
       host: host,
       port: port,
@@ -35,41 +70,26 @@ export class EmailService {
         user: this.configService.get<string>('MAIL_USER'),
         pass: this.configService.get<string>('MAIL_PASS'), // Gmail App Password
       },
-      // Custom socket factory to force IPv4
+      // Custom socket factory that bypasses hijacked DNS
       getSocket: (options: any, callback: any) => {
-        // Resolve hostname to IPv4 address first
-        dns.lookup(host, { family: 4, all: false }, (err, address, family) => {
-          if (err) {
-            this.logger.error(`❌ [EmailService] DNS lookup failed for ${host}:`, err);
-            // Fallback to default connection if DNS fails
-            return callback(err);
+        checkAndResolveGmailSMTP((err, address) => {
+          if (err || !address) {
+            this.logger.error(`❌ [EmailService] Failed to get Gmail SMTP IP:`, err);
+            // Last resort: use first known IP
+            const fallbackIP = gmailSMTPIPs[0];
+            this.logger.log(`🔵 [EmailService] Using fallback IP: ${fallbackIP}`);
+            const socket = net.createConnection(port, fallbackIP, callback);
+            return socket;
           }
           
-          this.logger.log(`🔵 [EmailService] Resolved ${host} to IPv4: ${address} (family: ${family})`);
-          
-          // Verify it's actually IPv4
-          if (family !== 4) {
-            this.logger.warn(`⚠️ [EmailService] DNS returned non-IPv4 address, trying again...`);
-            // Try again with explicit family 4
-            return dns.lookup(host, { family: 4 }, (err2, address2) => {
-              if (err2) {
-                this.logger.error(`❌ [EmailService] Second DNS lookup failed:`, err2);
-                return callback(err2);
-              }
-              this.logger.log(`🔵 [EmailService] Resolved ${host} to IPv4: ${address2}`);
-              const socket = net.createConnection(port, address2, callback);
-              return socket;
-            });
-          }
-          
-          // Create socket with resolved IPv4 address
-          // Use net.createConnection(port, host, callback) format for better compatibility
+          // Create socket with resolved or known IPv4 address
+          this.logger.log(`🔵 [EmailService] Connecting to Gmail SMTP at ${address}:${port}`);
           const socket = net.createConnection(port, address, callback);
           return socket;
         });
       },
       // Additional connection options for better reliability
-      connectionTimeout: 15000, // 15 seconds
+      connectionTimeout: 20000, // 20 seconds
       greetingTimeout: 10000, // 10 seconds
       socketTimeout: 10000, // 10 seconds
     } as any);
