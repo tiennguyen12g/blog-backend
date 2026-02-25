@@ -2,16 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as dns from 'dns';
+import * as net from 'net';
 
 // Force IPv4 DNS resolution to avoid IPv6 connection errors
-// This is a global setting that affects all DNS lookups in this process
-// For Node.js < 17, this will be ignored, but won't cause errors
+// Try multiple methods to ensure IPv4 is used
 try {
+  // Method 1: Node.js 17+ (preferred)
   if (typeof (dns as any).setDefaultResultOrder === 'function') {
     (dns as any).setDefaultResultOrder('ipv4first');
+    console.log('✅ [EmailService] DNS set to prefer IPv4 (Node.js 17+)');
   }
 } catch (error) {
-  // Ignore if not supported (Node.js < 17)
+  // Ignore if not supported
 }
 
 @Injectable()
@@ -20,21 +22,45 @@ export class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
+    const host = this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com';
+    const port = parseInt(this.configService.get<string>('MAIL_PORT') || '587');
+    
     // Initialize Nodemailer transporter
-    // IPv4 is forced via dns.setDefaultResultOrder('ipv4first') above
+    // Use a custom getSocket to force IPv4 connections
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
-      port: parseInt(this.configService.get<string>('MAIL_PORT') || '587'),
+      host: host,
+      port: port,
       secure: false, // true for 465, false for other ports
       auth: {
         user: this.configService.get<string>('MAIL_USER'),
         pass: this.configService.get<string>('MAIL_PASS'), // Gmail App Password
       },
+      // Custom socket factory to force IPv4
+      getSocket: (options: any, callback: any) => {
+        // Resolve hostname to IPv4 address
+        dns.lookup(host, { family: 4 }, (err, address) => {
+          if (err) {
+            this.logger.error(`❌ [EmailService] DNS lookup failed for ${host}:`, err);
+            return callback(err);
+          }
+          
+          this.logger.log(`🔵 [EmailService] Resolved ${host} to IPv4: ${address}`);
+          
+          // Create socket with resolved IPv4 address
+          const socket = net.createConnection({
+            host: address,
+            port: port,
+            family: 4,
+          }, callback);
+          
+          return socket;
+        });
+      },
       // Additional connection options for better reliability
-      connectionTimeout: 10000, // 10 seconds
+      connectionTimeout: 15000, // 15 seconds
       greetingTimeout: 10000, // 10 seconds
       socketTimeout: 10000, // 10 seconds
-    });
+    } as any);
 
     // Verify connection
     this.transporter.verify((error, success) => {

@@ -213,6 +213,14 @@ export class AuthController {
         // If token generated successfully, send email (even if user doesn't exist for security)
         if (result.success && result.token) {
           const emailSent = await this.emailService.sendPasswordResetEmail(email, result.token);
+          
+          // Log email sending result for debugging (but don't reveal to user for security)
+          if (!emailSent) {
+            console.error(`⚠️ [ForgotPassword] Failed to send email to ${email}, but returning success for security`);
+            // Still return success to not reveal if user exists
+            // In production, you might want to queue the email for retry
+          }
+          
           // Always return success message (security: don't reveal if user exists)
           return {
             success: true,
@@ -220,6 +228,7 @@ export class AuthController {
           };
         }
         
+        // Even if user doesn't exist, return success (security best practice)
         return {
           success: true,
           message: 'If an account exists with this email, a password reset link has been sent.',
