@@ -10,6 +10,7 @@ import { handleRequest } from '../global/handleRequest';
 import { ZodValidationPipe } from '../validation.pipe';
 import { UserService } from '../modules/user/user.service';
 import { EmailService } from '../modules/email/email.service';
+import { GoogleTokenVerifyService } from './google-token-verify.service';
 import {
   User_Register_Schema,
   User_Login_Schema,
@@ -25,6 +26,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly userService: UserService,
     private readonly emailService: EmailService,
+    private readonly googleTokenVerifyService: GoogleTokenVerifyService,
   ) {}
 
   /**
@@ -293,6 +295,68 @@ export class AuthController {
       message: 'Auth routes are working',
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Google OAuth - Frontend JavaScript SDK flow
+   * Accepts Google ID token from frontend and creates/logs in user
+   */
+  @Public()
+  @Post('google')
+  async googleAuthFrontend(
+    @Body('credential') credential: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<ResponseDataOutput<any>> {
+    return handleRequest({
+      execute: async () => {
+        // Verify Google ID token
+        const googleUser = await this.googleTokenVerifyService.verifyToken(credential);
+
+        // Create or find user from Google OAuth
+        const user = await this.userService.createOrFindGoogleUser({
+          email: googleUser.email,
+          firstName: googleUser.firstName,
+          lastName: googleUser.lastName,
+          picture: googleUser.picture,
+        });
+
+        // Generate JWT tokens
+        const { access_token, refresh_token } = await this.authService.login(user);
+
+        // Set cookies with proper settings for HTTPS
+        response.cookie('access_token', access_token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          maxAge: 15 * 60 * 1000, // 15 minutes
+          path: '/',
+        });
+
+        response.cookie('refresh_token', refresh_token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          path: '/',
+        });
+
+        // Get base user data
+        const getUserData = await this.userService.getBaseUserData({
+          existingUser: user,
+          network_name: 'google',
+        });
+
+        if (getUserData.status === 'Success') {
+          return {
+            status: 'Success',
+            result: getUserData.data,
+          };
+        } else {
+          throw new Error('Failed to get user data after Google authentication');
+        }
+      },
+      actionName: 'googleAuthFrontend',
+    });
   }
 
   /**

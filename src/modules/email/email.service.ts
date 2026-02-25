@@ -32,6 +32,10 @@ export class EmailService {
       '74.125.200.109',
       '173.194.76.108',
       '173.194.76.109',
+      '108.177.97.108',  // Additional Gmail SMTP IPs
+      '108.177.97.109',
+      '172.217.194.108',
+      '172.217.194.109',
     ];
     
     // Check if DNS is hijacked by resolving and validating the IP
@@ -61,6 +65,9 @@ export class EmailService {
       });
     };
     
+    // Store IPs for retry logic
+    (this as any).gmailSMTPIPs = gmailSMTPIPs;
+    
     // Initialize Nodemailer transporter with custom socket factory
     this.transporter = nodemailer.createTransport({
       host: host,
@@ -89,9 +96,9 @@ export class EmailService {
         });
       },
       // Additional connection options for better reliability
-      connectionTimeout: 20000, // 20 seconds
-      greetingTimeout: 10000, // 10 seconds
-      socketTimeout: 10000, // 10 seconds
+      connectionTimeout: 30000, // 30 seconds (increased for slow connections)
+      greetingTimeout: 15000, // 15 seconds
+      socketTimeout: 15000, // 15 seconds
     } as any);
 
     // Verify connection
@@ -207,8 +214,15 @@ export class EmailService {
       const info = await this.transporter.sendMail(mailOptions);
       this.logger.log(`✅ Password reset email sent to ${email}: ${info.messageId}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`❌ Failed to send password reset email to ${email}:`, error);
+      
+      // Log specific error details for debugging
+      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.message?.includes('timeout')) {
+        this.logger.warn(`⚠️ [EmailService] Connection timeout/refused - check firewall/network`);
+        this.logger.warn(`⚠️ [EmailService] Ensure port 587 is open and Gmail SMTP is accessible`);
+      }
+      
       return false;
     }
   }

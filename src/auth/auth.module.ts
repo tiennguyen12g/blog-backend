@@ -14,6 +14,7 @@ import { RolesGuard } from './roles.guard';
 import { Auth2FAModule } from './2fa/2fa.module';
 import { EmailModule } from '../modules/email/email.module';
 import { GoogleStrategy } from './google.strategy';
+import { GoogleTokenVerifyService } from './google-token-verify.service';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { GoogleStrategy } from './google.strategy';
     JwtStrategy,
     LocalStrategy,
     GoogleStrategy,
+    GoogleTokenVerifyService,
     RestrictedGuard,
     RolesGuard,
     // {
