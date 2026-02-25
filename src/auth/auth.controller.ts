@@ -346,11 +346,9 @@ export class AuthController {
           network_name: 'google',
         });
 
-        if (getUserData.status === 'Success') {
-          return {
-            status: 'Success',
-            result: getUserData.data,
-          };
+        if (getUserData.status === 'Success' && getUserData.data) {
+          // Return user data directly (handleRequest will wrap it)
+          return getUserData.data;
         } else {
           throw new Error('Failed to get user data after Google authentication');
         }
