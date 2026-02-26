@@ -56,7 +56,7 @@ export class UserMongoService {
         },
       };
     } catch (error) {
-      if (error.code === 11000) {
+      if ((error as any).code === 11000) {
         // Duplicate key error
         return {
           message: 'User with this email already exists',
@@ -120,7 +120,7 @@ export class UserMongoService {
     } catch (error) {
       return {
         status: 'Failed',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'An unknown error occurred',
       };
     }
   }
@@ -131,7 +131,7 @@ export class UserMongoService {
   async mongo_updateProfile(userId: string, profileData: any): Promise<any> {
     try {
       console.log('🔵 [mongo_updateProfile] Updating profile for user ID:', userId);
-      console.log('🔵 [mongo_updateProfile] Profile data:', profileData);
+      // console.log('🔵 [mongo_updateProfile] Profile data:', profileData);
 
       const user = await this.userModel.findById(userId);
       if (!user) {
@@ -554,7 +554,7 @@ export class UserMongoService {
     } catch (error) {
       return {
         status: 'Failed',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'An unknown error occurred',
       };
     }
   }
@@ -589,7 +589,7 @@ export class UserMongoService {
     } catch (error) {
       return {
         status: 'Failed',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'An unknown error occurred',
       };
     }
   }
@@ -619,7 +619,7 @@ export class UserMongoService {
     } catch (error) {
       return {
         status: 'Failed',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'An unknown error occurred',
       };
     }
   }
