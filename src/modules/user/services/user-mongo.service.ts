@@ -381,6 +381,58 @@ export class UserMongoService {
   }
 
   /**
+   * Change password for authenticated user
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<any> {
+    try {
+      const user = await this.userModel.findById(userId).exec();
+      
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      // Check if user has a password (OAuth users might not have one)
+      if (!user.password) {
+        return {
+          success: false,
+          message: 'Password change not available for OAuth accounts',
+        };
+      }
+
+      // Validate current password
+      const isPasswordMatch = await validateUserPassword({
+        password: currentPassword,
+        hash: user.password,
+      });
+
+      if (!isPasswordMatch) {
+        return {
+          success: false,
+          message: 'Current password is incorrect',
+        };
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password
+      user.password = hashedPassword;
+      await user.save();
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (error) {
+      console.error('❌ [changePassword] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Find user by ID
    */
   async findById(id: string): Promise<UserDocument | null> {

@@ -19,6 +19,14 @@ export const User_Login_Schema = z.object({
 });
 
 /**
+ * Change Password Schema
+ */
+export const User_ChangePassword_Schema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+});
+
+/**
  * User Profile Update Schema
  */
 export const User_ProfileUpdate_Schema = z.object({
@@ -78,6 +86,7 @@ export type User_Login_Type = z.infer<typeof User_Login_Schema>;
  * User Profile Update Type
  */
 export type User_ProfileUpdate_Type = z.infer<typeof User_ProfileUpdate_Schema>;
+export type User_ChangePassword_Type = z.infer<typeof User_ChangePassword_Schema>;
 
 /**
  * JWT Payload Type (what's stored in JWT token)

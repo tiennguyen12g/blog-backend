@@ -87,5 +87,12 @@ export class UserService {
   }) {
     return this.userMongoService.createOrFindGoogleUser(googleUser);
   }
+
+  /**
+   * Change password for authenticated user
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    return this.userMongoService.changePassword(userId, currentPassword, newPassword);
+  }
 }
 
