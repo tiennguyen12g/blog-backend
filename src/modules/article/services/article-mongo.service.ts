@@ -37,11 +37,25 @@ export class ArticleMongoService {
 
   /**
    * Find article by ID with author info
+   * @param articleId - Article ID
+   * @param userId - Optional user ID to check if article is liked by this user
    */
-  async findById(articleId: string): Promise<Article_Type | null> {
+  async findById(articleId: string, userId?: string): Promise<(Article_Type & { isLiked?: boolean }) | null> {
     const article = await this.articleModel.findById(articleId).lean();
     if (!article) return null;
-    return this.toArticleTypeWithAuthor(article);
+    const articleWithAuthor = await this.toArticleTypeWithAuthor(article);
+    
+    // Check if user has liked this article
+    if (userId) {
+      // If userId is provided, always include isLiked field
+      const isLiked = article.likedBy && article.likedBy.length > 0
+        ? article.likedBy.some((id: any) => id.toString() === userId.toString())
+        : false;
+      return { ...articleWithAuthor, isLiked };
+    }
+    
+    // If no userId, don't include isLiked field
+    return articleWithAuthor;
   }
 
   /**
@@ -173,10 +187,55 @@ export class ArticleMongoService {
   }
 
   /**
-   * Increment like count
+   * Toggle like (like/unlike) for an article
+   * Prevents duplicate likes by tracking likedBy array
    */
-  async incrementLikeCount(articleId: string): Promise<void> {
-    await this.articleModel.findByIdAndUpdate(articleId, { $inc: { likeCount: 1 } });
+  async toggleLike(articleId: string, userId: string): Promise<{ success: boolean; message: string; alreadyLiked?: boolean }> {
+    const article = await this.articleModel.findById(articleId);
+    
+    if (!article) {
+      throw new Error('Article not found');
+    }
+
+    // Initialize likedBy array if it doesn't exist
+    if (!article.likedBy) {
+      article.likedBy = [];
+    }
+
+    // Check if user already liked (compare as strings to handle ObjectId conversion)
+    const isLiked = article.likedBy.some((id: any) => id.toString() === userId.toString());
+
+    if (isLiked) {
+      // Unlike: remove user from likedBy and decrement count
+      article.likedBy = article.likedBy.filter((id: string) => id.toString() !== userId);
+      article.likeCount = Math.max(0, (article.likeCount || 0) - 1);
+      await article.save();
+      return { 
+        success: true, 
+        message: 'Article unliked successfully',
+        alreadyLiked: false 
+      };
+    } else {
+      // Like: add user to likedBy and increment count
+      // Check again to prevent race conditions
+      if (!article.likedBy.some((id: any) => id.toString() === userId.toString())) {
+        article.likedBy.push(userId);
+        article.likeCount = (article.likeCount || 0) + 1;
+        await article.save();
+        return { 
+          success: true, 
+          message: 'Article liked successfully',
+          alreadyLiked: false 
+        };
+      } else {
+        // User already liked (race condition)
+        return { 
+          success: false, 
+          message: 'You have already liked this article',
+          alreadyLiked: true 
+        };
+      }
+    }
   }
 
   /**

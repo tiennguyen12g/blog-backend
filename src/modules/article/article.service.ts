@@ -21,9 +21,11 @@ export class ArticleService {
 
   /**
    * Get article by ID
+   * @param articleId - Article ID
+   * @param userId - Optional user ID to check if article is liked by this user
    */
-  async findById(articleId: string): Promise<Article_Type | null> {
-    return this.articleMongoService.findById(articleId);
+  async findById(articleId: string, userId?: string): Promise<(Article_Type & { isLiked?: boolean }) | null> {
+    return this.articleMongoService.findById(articleId, userId);
   }
 
   /**
@@ -59,9 +61,10 @@ export class ArticleService {
   }
 
   /**
-   * Increment like count
+   * Toggle like (like/unlike) for an article
+   * Returns success status and whether the article was already liked
    */
-  async incrementLikeCount(articleId: string): Promise<void> {
-    return this.articleMongoService.incrementLikeCount(articleId);
+  async toggleLike(articleId: string, userId: string): Promise<{ success: boolean; message: string; alreadyLiked?: boolean }> {
+    return this.articleMongoService.toggleLike(articleId, userId);
   }
 }

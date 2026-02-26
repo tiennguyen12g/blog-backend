@@ -53,6 +53,9 @@ export class Article {
   @Prop({ type: Number, default: 0 })
   likeCount?: number;
 
+  @Prop({ type: [String], default: [] })
+  likedBy?: string[]; // Array of user IDs who liked this article
+
   @Prop({ type: Boolean, default: false })
   isFeatured?: boolean;
 

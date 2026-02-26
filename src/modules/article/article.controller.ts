@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../auth/optional-jwt.guard';
 import { RestrictedGuard } from '../../auth/restricted.guard';
 import { RolesGuard, Roles } from '../../auth/roles.guard';
 import { UserRole } from '../user/user.schema';
@@ -60,15 +61,17 @@ export class ArticleController {
   /**
    * Get article by ID
    * GET /api/v1/articles/:id
-   * Public endpoint
+   * Public endpoint (but includes isLiked if user is authenticated)
    */
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   async findById(
+    @Request() req: { user?: JwtUserPayload },
     @Param('id') id: string,
-  ): Promise<ResponseDataOutput<Article_Type | ResponseDataWhenError>> {
-    return handleRequest<Article_Type>({
+  ): Promise<ResponseDataOutput<Article_Type & { isLiked?: boolean } | ResponseDataWhenError>> {
+    return handleRequest<Article_Type & { isLiked?: boolean }>({
       execute: async () => {
-        const article = await this.articleService.findById(id);
+        const article = await this.articleService.findById(id, req.user?.user_id);
         if (!article) {
           throw new Error('Article not found');
         }
@@ -146,16 +149,22 @@ export class ArticleController {
   /**
    * Like article
    * POST /api/v1/articles/:id/like
-   * Public endpoint (can be protected if needed)
+   * Requires authentication
    */
   @Post(':id/like')
+  @UseGuards(JwtAuthGuard)
   async like(
+    @Request() req: { user: JwtUserPayload },
     @Param('id') id: string,
-  ): Promise<ResponseDataOutput<{ success: boolean; message: string } | ResponseDataWhenError>> {
-    return handleRequest<{ success: boolean; message: string }>({
+  ): Promise<ResponseDataOutput<{ success: boolean; message: string; alreadyLiked?: boolean } | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
+
+    return handleRequest<{ success: boolean; message: string; alreadyLiked?: boolean }>({
       execute: async () => {
-        await this.articleService.incrementLikeCount(id);
-        return { success: true, message: 'Article liked successfully' };
+        const result = await this.articleService.toggleLike(id, req.user.user_id);
+        return result;
       },
       actionName: 'likeArticle',
     });
