@@ -27,6 +27,39 @@ export const User_ChangePassword_Schema = z.object({
 });
 
 /**
+ * Resume Update Schema
+ */
+export const User_ResumeUpdate_Schema = z.object({
+  fullName: z.string().optional(),
+  profilePhoto: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  location: z.string().optional(),
+  nationality: z.string().optional(),
+  education: z.string().optional(),
+  educationLocation: z.string().optional(),
+  educationGraduation: z.string().optional(),
+  visaType: z.string().optional(),
+  visaExpiry: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  languages: z.array(z.object({
+    name: z.string(),
+    level: z.string(),
+    proficiency: z.number().min(0).max(100),
+  })).optional(),
+  aboutMe: z.string().optional(),
+  workExperience: z.array(z.object({
+    date: z.string(),
+    title: z.string(),
+    location: z.string(),
+    description: z.string().optional(),
+  })).optional(),
+  strengths: z.array(z.string()).optional(),
+}).refine(data => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided for update',
+});
+
+/**
  * User Profile Update Schema
  */
 export const User_ProfileUpdate_Schema = z.object({
@@ -86,6 +119,7 @@ export type User_Login_Type = z.infer<typeof User_Login_Schema>;
  * User Profile Update Type
  */
 export type User_ProfileUpdate_Type = z.infer<typeof User_ProfileUpdate_Schema>;
+export type User_ResumeUpdate_Type = z.infer<typeof User_ResumeUpdate_Schema>;
 export type User_ChangePassword_Type = z.infer<typeof User_ChangePassword_Schema>;
 
 /**
@@ -146,6 +180,33 @@ export type User_Type = {
       totalPoints?: number;
       lastUpdated?: Date;
     };
+  };
+  resume?: {
+    fullName?: string;
+    profilePhoto?: string;
+    phone?: string;
+    email?: string;
+    location?: string;
+    nationality?: string;
+    education?: string;
+    educationLocation?: string;
+    educationGraduation?: string;
+    visaType?: string;
+    visaExpiry?: string;
+    skills?: string[];
+    languages?: Array<{
+      name: string;
+      level: string;
+      proficiency: number;
+    }>;
+    aboutMe?: string;
+    workExperience?: Array<{
+      date: string;
+      title: string;
+      location: string;
+      description?: string;
+    }>;
+    strengths?: string[];
   };
   secure?: {
     google2FA?: {

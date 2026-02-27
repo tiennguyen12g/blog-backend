@@ -1,8 +1,8 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../user.schema';
-import { User_Register_Type, User_Login_Type, User_Type, User_RegisterOutput_Type } from '../user.interface';
+import { User_Register_Type, User_Login_Type, User_Type, User_RegisterOutput_Type, User_ResumeUpdate_Type } from '../user.interface';
 import { hashPassword, validateUserPassword } from '../../../utils/bcryptPassword';
 import { ResponseData } from '../../../global/GlobalResponseData';
 import { v4 as uuidv4 } from 'uuid';
@@ -33,7 +33,8 @@ export class UserMongoService {
       const verificationTokenExpiry = new Date();
       verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
 
-      // Create new user
+      // Create new user with default resume data
+      const defaultResume = this.getDefaultResumeData();
       const newUser = new this.userModel({
         email: registerData.email,
         password: hashedPassword,
@@ -41,6 +42,7 @@ export class UserMongoService {
         emailVerified: false,
         emailVerificationToken: verificationToken,
         emailVerificationTokenExpiry: verificationTokenExpiry,
+        resume: defaultResume,
       });
 
       const savedUser = await newUser.save();
@@ -490,6 +492,17 @@ export class UserMongoService {
       const defaultPassword = '12345678';
       const hashedPassword = await hashPassword(defaultPassword);
       
+      // Create new user with default resume data
+      const defaultResume = this.getDefaultResumeData();
+      // Pre-fill resume with Google profile data
+      if (googleUser.firstName || googleUser.lastName) {
+        defaultResume.fullName = `${googleUser.firstName || ''} ${googleUser.lastName || ''}`.trim();
+      }
+      if (googleUser.picture) {
+        defaultResume.profilePhoto = googleUser.picture;
+      }
+      defaultResume.email = googleUser.email;
+
       const newUser = new this.userModel({
         email: googleUser.email,
         password: hashedPassword, // Default password for OAuth users
@@ -500,6 +513,7 @@ export class UserMongoService {
           lastName: googleUser.lastName,
           avatar: googleUser.picture,
         },
+        resume: defaultResume,
       });
 
       const savedUser = await newUser.save();
@@ -622,6 +636,112 @@ export class UserMongoService {
         message: error instanceof Error ? error.message : 'An unknown error occurred',
       };
     }
+  }
+
+  /**
+   * Get default resume data for new users
+   */
+  getDefaultResumeData() {
+    return {
+      fullName: '',
+      profilePhoto: '',
+      phone: '',
+      email: '',
+      location: '',
+      nationality: '',
+      education: '',
+      educationLocation: '',
+      educationGraduation: '',
+      visaType: '',
+      visaExpiry: '',
+      skills: [],
+      languages: [],
+      aboutMe: '',
+      workExperience: [],
+      strengths: [],
+    };
+  }
+
+  /**
+   * Get user resume
+   */
+  async getResume(userId: string): Promise<User_Type> {
+    const user = await this.userModel.findById(userId).lean();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // If user doesn't have resume, return with default resume data
+    if (!user.resume) {
+      const defaultResume = this.getDefaultResumeData();
+      // Merge with user profile data if available
+      if (user.profile) {
+        defaultResume.fullName = `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim();
+        defaultResume.profilePhoto = user.profile.avatar || '';
+        defaultResume.phone = user.profile.phoneNumber || '';
+        defaultResume.email = user.email;
+        defaultResume.location = user.profile.location || '';
+      }
+      return {
+        ...user,
+        _id: user._id.toString(),
+        resume: defaultResume,
+      } as User_Type;
+    }
+
+    return {
+      ...user,
+      _id: user._id.toString(),
+    } as User_Type;
+  }
+
+  /**
+   * Update user resume
+   */
+  async updateResume(userId: string, resumeData: User_ResumeUpdate_Type): Promise<User_Type> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Initialize resume if it doesn't exist
+    if (!user.resume) {
+      user.resume = this.getDefaultResumeData() as any;
+    }
+
+    // Update only provided fields
+    Object.keys(resumeData).forEach((key) => {
+      if (resumeData[key as keyof User_ResumeUpdate_Type] !== undefined) {
+        (user.resume as any)[key] = resumeData[key as keyof User_ResumeUpdate_Type];
+      }
+    });
+
+    // Mark resume as modified to ensure Mongoose saves nested object changes
+    user.markModified('resume');
+    await user.save();
+    const { password, ...userWithoutPassword } = user.toObject();
+    return {
+      ...userWithoutPassword,
+      _id: userWithoutPassword._id.toString(),
+    } as User_Type;
+  }
+
+  /**
+   * Get public resume by user ID (no authentication required)
+   */
+  async getPublicResume(userId: string): Promise<User_Type> {
+    const user = await this.userModel.findById(userId).lean();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Return only resume data, no sensitive information
+    const { password, secure, emailVerificationToken, passwordResetToken, ...publicUser } = user;
+    
+    return {
+      ...publicUser,
+      _id: publicUser._id.toString(),
+    } as User_Type;
   }
 }
 

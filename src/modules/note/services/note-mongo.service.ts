@@ -23,6 +23,7 @@ export class NoteMongoService {
   private toNoteType(note: any): Note_Type {
     return {
       _id: note._id?.toString(),
+      userId: note.userId?.toString() || note.userId,
       title: note.title,
       description: note.description,
       type: note.type,
@@ -45,31 +46,37 @@ export class NoteMongoService {
   /**
    * Create a new note
    */
-  async create(createData: Note_Create_Type): Promise<Note_Type> {
+  async create(userId: string, createData: Note_Create_Type): Promise<Note_Type> {
+    if (!userId) {
+      throw new Error('UserId is required to create a note');
+    }
+    
     const newNote = new this.noteModel({
       ...createData,
+      userId, // Set userId from authenticated user - CRITICAL for user isolation
       date: createData.date || new Date(),
       isCompleted: createData.isCompleted || false,
       priority: createData.priority || 'medium',
     });
 
     const savedNote = await newNote.save();
+    // console.log(`✅ [NoteMongoService] Created note ${savedNote._id} for user ${userId}`);
     return this.toNoteType(savedNote);
   }
 
   /**
-   * Find note by ID
+   * Find note by ID (user-specific)
    */
-  async findById(noteId: string): Promise<Note_Type | null> {
-    const note = await this.noteModel.findById(noteId).lean();
+  async findById(noteId: string, userId: string): Promise<Note_Type | null> {
+    const note = await this.noteModel.findOne({ _id: noteId, userId }).lean();
     if (!note) return null;
     return this.toNoteType(note);
   }
 
   /**
-   * Find notes with pagination and filters
+   * Find notes with pagination and filters (user-specific)
    */
-  async findMany(query: Note_Query_Type): Promise<Note_ListResponse_Type> {
+  async findMany(userId: string, query: Note_Query_Type): Promise<Note_ListResponse_Type> {
     const {
       page = 1,
       limit = 50,
@@ -86,8 +93,12 @@ export class NoteMongoService {
       includeRecurring = true,
     } = query;
 
-    // Build filter
-    const filter: any = {};
+    // Build filter - ALWAYS filter by userId first (CRITICAL for user isolation)
+    if (!userId) {
+      throw new Error('UserId is required to query notes');
+    }
+    
+    const filter: any = { userId }; // This ensures only notes belonging to this user are returned
 
     if (type) filter.type = type;
     if (priority) filter.priority = priority;
@@ -130,6 +141,8 @@ export class NoteMongoService {
     }
 
     // Search in title, description, result
+    // MongoDB query { userId: 'x', $or: [...] } correctly means:
+    // userId must be 'x' AND (one of the $or conditions must match)
     if (search) {
       filter.$or = [
         ...(filter.$or || []),
@@ -138,6 +151,12 @@ export class NoteMongoService {
         { result: { $regex: search, $options: 'i' } },
       ];
     }
+    
+    // Final check: Ensure userId is always present in the filter
+    // This is a safety check - userId should already be set at the beginning
+    if (!filter.userId && !filter.$and) {
+      filter.userId = userId;
+    }
 
     // Build sort
     const sort: any = {};
@@ -145,10 +164,12 @@ export class NoteMongoService {
 
     // Execute query
     const skip = (page - 1) * limit;
+    // console.log(`🔵 [NoteMongoService] Querying notes for userId: ${userId}, filter:`, JSON.stringify(filter));
     const [notes, total] = await Promise.all([
       this.noteModel.find(filter).sort(sort).skip(skip).limit(limit).lean(),
       this.noteModel.countDocuments(filter),
     ]);
+    // console.log(`✅ [NoteMongoService] Found ${notes.length} notes for userId: ${userId}`);
 
     return {
       notes: notes.map(n => this.toNoteType(n)),
@@ -160,13 +181,14 @@ export class NoteMongoService {
   }
 
   /**
-   * Get calendar view - notes grouped by date
+   * Get calendar view - notes grouped by date (user-specific)
    */
-  async getCalendarView(month: number, year: number): Promise<Note_CalendarResponse_Type> {
+  async getCalendarView(userId: string, month: number, year: number): Promise<Note_CalendarResponse_Type> {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59, 999);
 
     const filter: any = {
+      userId, // ALWAYS filter by userId first
       $or: [
         { date: { $gte: start, $lte: end } },
         { endDate: { $gte: start, $lte: end } },
@@ -204,10 +226,10 @@ export class NoteMongoService {
   }
 
   /**
-   * Update note
+   * Update note (user-specific)
    */
-  async update(noteId: string, updateData: Note_Update_Type): Promise<Note_Type> {
-    const note = await this.noteModel.findById(noteId);
+  async update(noteId: string, userId: string, updateData: Note_Update_Type): Promise<Note_Type> {
+    const note = await this.noteModel.findOne({ _id: noteId, userId });
     if (!note) {
       throw new NotFoundException('Note not found');
     }
@@ -225,18 +247,18 @@ export class NoteMongoService {
   }
 
   /**
-   * Delete note
+   * Delete note (user-specific)
    */
-  async delete(noteId: string): Promise<boolean> {
-    const result = await this.noteModel.findByIdAndDelete(noteId);
+  async delete(noteId: string, userId: string): Promise<boolean> {
+    const result = await this.noteModel.findOneAndDelete({ _id: noteId, userId });
     return !!result;
   }
 
   /**
-   * Toggle completion status
+   * Toggle completion status (user-specific)
    */
-  async toggleCompletion(noteId: string): Promise<Note_Type> {
-    const note = await this.noteModel.findById(noteId);
+  async toggleCompletion(noteId: string, userId: string): Promise<Note_Type> {
+    const note = await this.noteModel.findOne({ _id: noteId, userId });
     if (!note) {
       throw new NotFoundException('Note not found');
     }

@@ -66,6 +66,66 @@ class SocialLinksSchema {
   twitter?: string;
 }
 
+// ==================== Resume Schema ====================
+class ResumeSchema {
+  @Prop({ type: String, trim: true })
+  fullName?: string;
+
+  @Prop({ type: String })
+  profilePhoto?: string;
+
+  @Prop({ type: String, trim: true })
+  phone?: string;
+
+  @Prop({ type: String, trim: true })
+  email?: string;
+
+  @Prop({ type: String, trim: true })
+  location?: string;
+
+  @Prop({ type: String, trim: true })
+  nationality?: string;
+
+  @Prop({ type: String, trim: true })
+  education?: string;
+
+  @Prop({ type: String, trim: true })
+  educationLocation?: string;
+
+  @Prop({ type: String, trim: true })
+  educationGraduation?: string;
+
+  @Prop({ type: String, trim: true })
+  visaType?: string;
+
+  @Prop({ type: String, trim: true })
+  visaExpiry?: string;
+
+  @Prop({ type: [String], default: [] })
+  skills?: string[];
+
+  @Prop({ type: [Object], default: [] })
+  languages?: Array<{
+    name: string;
+    level: string;
+    proficiency: number; // 0-100
+  }>;
+
+  @Prop({ type: String, trim: true })
+  aboutMe?: string;
+
+  @Prop({ type: [Object], default: [] })
+  workExperience?: Array<{
+    date: string;
+    title: string;
+    location: string;
+    description?: string;
+  }>;
+
+  @Prop({ type: [String], default: [] })
+  strengths?: string[];
+}
+
 // ==================== Visa Points Schema ====================
 class VisaPointsSchema {
   // Age points (0-30 points)
@@ -195,6 +255,9 @@ export class User {
 
   @Prop({ type: ProfileSchema, _id: false })
   profile?: ProfileSchema;
+
+  @Prop({ type: ResumeSchema, _id: false })
+  resume?: ResumeSchema;
 
   @Prop({ type: SecureSchema, _id: false, default: {} })
   secure?: SecureSchema;

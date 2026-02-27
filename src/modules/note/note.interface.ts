@@ -98,6 +98,7 @@ export const Note_Query_Schema = z.object({
  */
 export type Note_Type = {
   _id?: string;
+  userId: string;
   title: string;
   description?: string;
   type: NoteType;

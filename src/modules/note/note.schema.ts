@@ -43,8 +43,8 @@ class RecurringPatternSchema {
   collection: 'notes' // Explicitly set collection name
 })
 export class Note {
-  // Note: Since all users can use, we don't need userId
-  // But we can add it later if needed for user-specific notes
+  @Prop({ type: String, ref: 'User', required: true })
+  userId: string; // Reference to User _id - notes are user-specific
 
   @Prop({ type: String, required: true, trim: true })
   title: string;
@@ -101,6 +101,9 @@ export class Note {
 export const NoteSchema = SchemaFactory.createForClass(Note);
 
 // Create indexes for better query performance
+NoteSchema.index({ userId: 1 }); // Index for user-specific queries (most important)
+NoteSchema.index({ userId: 1, date: -1 }); // Compound index for user + date queries
+NoteSchema.index({ userId: 1, type: 1 }); // Compound index for user + type queries
 NoteSchema.index({ date: -1 });
 NoteSchema.index({ endDate: -1 });
 NoteSchema.index({ type: 1 });

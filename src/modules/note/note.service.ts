@@ -13,31 +13,31 @@ import {
 export class NoteService {
   constructor(private readonly noteMongoService: NoteMongoService) {}
 
-  async create(createData: Note_Create_Type): Promise<Note_Type> {
-    return this.noteMongoService.create(createData);
+  async create(userId: string, createData: Note_Create_Type): Promise<Note_Type> {
+    return this.noteMongoService.create(userId, createData);
   }
 
-  async findById(noteId: string): Promise<Note_Type | null> {
-    return this.noteMongoService.findById(noteId);
+  async findById(noteId: string, userId: string): Promise<Note_Type | null> {
+    return this.noteMongoService.findById(noteId, userId);
   }
 
-  async findMany(query: Note_Query_Type): Promise<Note_ListResponse_Type> {
-    return this.noteMongoService.findMany(query);
+  async findMany(userId: string, query: Note_Query_Type): Promise<Note_ListResponse_Type> {
+    return this.noteMongoService.findMany(userId, query);
   }
 
-  async getCalendarView(month: number, year: number): Promise<Note_CalendarResponse_Type> {
-    return this.noteMongoService.getCalendarView(month, year);
+  async getCalendarView(userId: string, month: number, year: number): Promise<Note_CalendarResponse_Type> {
+    return this.noteMongoService.getCalendarView(userId, month, year);
   }
 
-  async update(noteId: string, updateData: Note_Update_Type): Promise<Note_Type> {
-    return this.noteMongoService.update(noteId, updateData);
+  async update(noteId: string, userId: string, updateData: Note_Update_Type): Promise<Note_Type> {
+    return this.noteMongoService.update(noteId, userId, updateData);
   }
 
-  async delete(noteId: string): Promise<boolean> {
-    return this.noteMongoService.delete(noteId);
+  async delete(noteId: string, userId: string): Promise<boolean> {
+    return this.noteMongoService.delete(noteId, userId);
   }
 
-  async toggleCompletion(noteId: string): Promise<Note_Type> {
-    return this.noteMongoService.toggleCompletion(noteId);
+  async toggleCompletion(noteId: string, userId: string): Promise<Note_Type> {
+    return this.noteMongoService.toggleCompletion(noteId, userId);
   }
 }

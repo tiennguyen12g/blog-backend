@@ -13,6 +13,7 @@ import {
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RestrictedGuard } from '../../auth/restricted.guard';
 import { NoteService } from './note.service';
+import { JwtUserPayload } from '../user/user.interface';
 import { ZodValidationPipe } from '../../validation.pipe';
 import { handleRequest } from '../../global/handleRequest';
 import { ResponseDataOutput, ResponseDataWhenError } from '../../global/GlobalResponseData';
@@ -38,11 +39,15 @@ export class NoteController {
    */
   @Post()
   async create(
+    @Request() req: { user: JwtUserPayload },
     @Body(new ZodValidationPipe({ schema: Note_Create_Schema, action: 'createNote' }))
     createData: Note_Create_Type,
   ): Promise<ResponseDataOutput<Note_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
     return handleRequest<Note_Type>({
-      execute: () => this.noteService.create(createData),
+      execute: () => this.noteService.create(req.user.user_id, createData),
       actionName: 'createNote',
     });
   }
@@ -52,11 +57,16 @@ export class NoteController {
    */
   @Get()
   async findMany(
+    @Request() req: { user: JwtUserPayload },
     @Query(new ZodValidationPipe({ schema: Note_Query_Schema, action: 'getNotes' }))
     query: Note_Query_Type,
   ): Promise<ResponseDataOutput<Note_ListResponse_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
+    console.log(`🔵 [NoteController] Getting notes for userId: ${req.user.user_id}`);
     return handleRequest<Note_ListResponse_Type>({
-      execute: () => this.noteService.findMany(query),
+      execute: () => this.noteService.findMany(req.user.user_id, query),
       actionName: 'getNotes',
     });
   }
@@ -66,9 +76,13 @@ export class NoteController {
    */
   @Get('calendar')
   async getCalendarView(
+    @Request() req: { user: JwtUserPayload },
     @Query('month') month: string,
     @Query('year') year: string,
   ): Promise<ResponseDataOutput<Note_CalendarResponse_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
     const monthNum = parseInt(month, 10);
     const yearNum = parseInt(year, 10);
 
@@ -82,7 +96,7 @@ export class NoteController {
     }
 
     return handleRequest<Note_CalendarResponse_Type>({
-      execute: () => this.noteService.getCalendarView(monthNum, yearNum),
+      execute: () => this.noteService.getCalendarView(req.user.user_id, monthNum, yearNum),
       actionName: 'getCalendarView',
     });
   }
@@ -92,10 +106,14 @@ export class NoteController {
    */
   @Get(':id')
   async findById(
+    @Request() req: { user: JwtUserPayload },
     @Param('id') id: string,
   ): Promise<ResponseDataOutput<Note_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
     return handleRequest<Note_Type>({
-      execute: () => this.noteService.findById(id),
+      execute: () => this.noteService.findById(id, req.user.user_id),
       actionName: 'getNote',
     });
   }
@@ -105,12 +123,16 @@ export class NoteController {
    */
   @Put(':id')
   async update(
+    @Request() req: { user: JwtUserPayload },
     @Param('id') id: string,
     @Body(new ZodValidationPipe({ schema: Note_Update_Schema, action: 'updateNote' }))
     updateData: Note_Update_Type,
   ): Promise<ResponseDataOutput<Note_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
     return handleRequest<Note_Type>({
-      execute: () => this.noteService.update(id, updateData),
+      execute: () => this.noteService.update(id, req.user.user_id, updateData),
       actionName: 'updateNote',
     });
   }
@@ -120,10 +142,14 @@ export class NoteController {
    */
   @Put(':id/toggle-completion')
   async toggleCompletion(
+    @Request() req: { user: JwtUserPayload },
     @Param('id') id: string,
   ): Promise<ResponseDataOutput<Note_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
     return handleRequest<Note_Type>({
-      execute: () => this.noteService.toggleCompletion(id),
+      execute: () => this.noteService.toggleCompletion(id, req.user.user_id),
       actionName: 'toggleNoteCompletion',
     });
   }
@@ -133,11 +159,15 @@ export class NoteController {
    */
   @Delete(':id')
   async delete(
+    @Request() req: { user: JwtUserPayload },
     @Param('id') id: string,
   ): Promise<ResponseDataOutput<{ success: boolean } | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
     return handleRequest<{ success: boolean }>({
       execute: async () => {
-        const success = await this.noteService.delete(id);
+        const success = await this.noteService.delete(id, req.user.user_id);
         return { success };
       },
       actionName: 'deleteNote',

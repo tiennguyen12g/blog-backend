@@ -1,8 +1,9 @@
-import { Controller, Patch, Body, Request, UseGuards, Post } from '@nestjs/common';
+import { Controller, Patch, Body, Request, UseGuards, Post, Get, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { Public } from '../../auth/public.decorator';
 import { UserService } from './user.service';
 import { ZodValidationPipe } from '../../validation.pipe';
-import { User_ProfileUpdate_Schema, User_ProfileUpdate_Type, User_Type, User_ChangePassword_Schema, User_ChangePassword_Type } from './user.interface';
+import { User_ProfileUpdate_Schema, User_ProfileUpdate_Type, User_Type, User_ChangePassword_Schema, User_ChangePassword_Type, User_ResumeUpdate_Schema, User_ResumeUpdate_Type } from './user.interface';
 import { handleRequest } from '../../global/handleRequest';
 import { ResponseDataOutput, ResponseDataWhenError } from '../../global/GlobalResponseData';
 import { JwtUserPayload } from './user.interface';
@@ -63,6 +64,62 @@ export class UserController {
         passwordData.newPassword
       ),
       actionName: 'changePassword',
+    });
+  }
+
+  /**
+   * Get user resume
+   * GET /api/v1/user/resume
+   * Requires authentication (JWT)
+   */
+  @Get('resume')
+  async getResume(
+    @Request() req: { user: JwtUserPayload },
+  ): Promise<ResponseDataOutput<User_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
+    
+    return handleRequest<User_Type>({
+      execute: () => this.userService.getResume(req.user.user_id),
+      actionName: 'getResume',
+    });
+  }
+
+  /**
+   * Update user resume
+   * PATCH /api/v1/user/resume
+   * Requires authentication (JWT)
+   */
+  @Patch('resume')
+  async updateResume(
+    @Request() req: { user: JwtUserPayload },
+    @Body(new ZodValidationPipe({ schema: User_ResumeUpdate_Schema, action: 'updateResume' }))
+    resumeData: User_ResumeUpdate_Type,
+  ): Promise<ResponseDataOutput<User_Type | ResponseDataWhenError>> {
+    if (!req.user || !req.user.user_id) {
+      throw new Error('User not authenticated');
+    }
+    
+    return handleRequest<User_Type>({
+      execute: () => this.userService.updateResume(req.user.user_id, resumeData),
+      actionName: 'updateResume',
+    });
+  }
+
+  /**
+   * Get public resume by user ID
+   * GET /api/v1/user/resume/public/:userId
+   * Public endpoint (no authentication required)
+   */
+  @Get('resume/public/:userId')
+  @Public()
+  async getPublicResume(
+    @Param('userId') userId: string,
+  ): Promise<ResponseDataOutput<User_Type | ResponseDataWhenError>> {
+    return handleRequest<User_Type>({
+      execute: () => this.userService.getPublicResume(userId),
+      actionName: 'getPublicResume',
     });
   }
 }
