@@ -16,15 +16,26 @@ export class DashboardService {
   async getDashboardData(userId: string, startDate?: Date, endDate?: Date) {
     // Get all accounts
     const accounts = await this.accountMongoService.findByUserId(userId);
+
+    const BASE_CURRENCY = 'AUD';
     
-    // Calculate total balance
-    const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+    // For now, only include accounts whose native currency matches the base currency (AUD)
+    // to avoid mixing AUD and non-AUD balances.
+    const totalBalance = accounts.reduce((sum, acc) => {
+      return acc.currency === BASE_CURRENCY ? sum + acc.balance : sum;
+    }, 0);
 
     // Get account breakdown by type
     const accountBreakdown = {
-      cash: accounts.filter(a => a.type === AccountType.CASH).reduce((sum, a) => sum + a.balance, 0),
-      bankAccount: accounts.filter(a => a.type === AccountType.BANK_ACCOUNT).reduce((sum, a) => sum + a.balance, 0),
-      cryptoWallet: accounts.filter(a => a.type === AccountType.CRYPTO_WALLET).reduce((sum, a) => sum + a.balance, 0),
+      cash: accounts
+        .filter(a => a.type === AccountType.CASH && a.currency === BASE_CURRENCY)
+        .reduce((sum, a) => sum + a.balance, 0),
+      bankAccount: accounts
+        .filter(a => a.type === AccountType.BANK_ACCOUNT && a.currency === BASE_CURRENCY)
+        .reduce((sum, a) => sum + a.balance, 0),
+      cryptoWallet: accounts
+        .filter(a => a.type === AccountType.CRYPTO_WALLET && a.currency === BASE_CURRENCY)
+        .reduce((sum, a) => sum + a.balance, 0),
     };
 
     // Get transaction summary

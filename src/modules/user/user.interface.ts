@@ -36,6 +36,7 @@ export const User_ResumeUpdate_Schema = z.object({
   email: z.string().email().optional(),
   location: z.string().optional(),
   nationality: z.string().optional(),
+  sex: z.enum(['male', 'female', 'other', 'prefer-not-to-say']).optional(),
   education: z.string().optional(),
   educationLocation: z.string().optional(),
   educationGraduation: z.string().optional(),

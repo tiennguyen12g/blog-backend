@@ -93,6 +93,26 @@ export class Transaction {
   @Prop({ type: String, default: 'AUD' })
   currency: string; // Default to AUD
 
+  /**
+   * Optional original amount & currency information.
+   * Example:
+   * - amount (base): 20 AUD
+   * - originalAmount: 220000
+   * - originalCurrency: 'VND'
+   * - exchangeRate: 0.0000909 (1 VND → AUD)
+   *
+   * These fields are used only for display & audit; all balance calculations
+   * continue to use `amount` in the account/base currency.
+   */
+  @Prop({ type: Number })
+  originalAmount?: number;
+
+  @Prop({ type: String })
+  originalCurrency?: string;
+
+  @Prop({ type: Number })
+  exchangeRate?: number;
+
   @Prop({ type: Date, required: true, default: Date.now })
   date: Date; // Transaction date
 

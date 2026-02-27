@@ -86,6 +86,12 @@ class ResumeSchema {
   @Prop({ type: String, trim: true })
   nationality?: string;
 
+  @Prop({ 
+    type: String, 
+    enum: ['male', 'female', 'other', 'prefer-not-to-say'] 
+  })
+  sex?: string;
+
   @Prop({ type: String, trim: true })
   education?: string;
 

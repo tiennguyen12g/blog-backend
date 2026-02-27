@@ -649,6 +649,7 @@ export class UserMongoService {
       email: '',
       location: '',
       nationality: '',
+      sex: '',
       education: '',
       educationLocation: '',
       educationGraduation: '',

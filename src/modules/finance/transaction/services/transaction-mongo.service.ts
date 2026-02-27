@@ -37,10 +37,20 @@ export class TransactionMongoService {
 
     const savedTransaction = await newTransaction.save();
 
-    // Update account balance
-    const balanceChange = createData.type === TransactionType.INCOME 
-      ? createData.amount 
-      : -createData.amount;
+    // Update account balance in the account's native currency.
+    // Prefer originalAmount/originalCurrency when they match the account currency.
+    const accountCurrency = (account.currency || 'AUD').toUpperCase();
+    const originalCurrency = createData.originalCurrency?.toUpperCase();
+    const useOriginal =
+      !!createData.originalAmount &&
+      !!originalCurrency &&
+      originalCurrency === accountCurrency;
+
+    const effectiveAmount = useOriginal ? createData.originalAmount! : createData.amount;
+
+    const balanceChange =
+      createData.type === TransactionType.INCOME ? effectiveAmount : -effectiveAmount;
+
     await this.accountModel.findByIdAndUpdate(createData.accountId, {
       $inc: { balance: balanceChange },
       $set: { lastTransactionAt: savedTransaction.date },
@@ -129,16 +139,33 @@ export class TransactionMongoService {
     }
 
     // If amount or type changed, need to adjust account balance
-    const oldAmount = transaction.amount;
     const oldType = transaction.type;
     const oldAccountId = transaction.accountId.toString();
-    const newAmount = updateData.amount || oldAmount;
+
+    const oldAccountCurrency = (transaction.currency || 'AUD').toUpperCase();
+    const oldOriginalCurrency = transaction.originalCurrency?.toUpperCase();
+    const oldUseOriginal =
+      !!transaction.originalAmount &&
+      !!oldOriginalCurrency &&
+      oldOriginalCurrency === oldAccountCurrency;
+    const oldEffectiveAmount = oldUseOriginal ? transaction.originalAmount! : transaction.amount;
+
     const newType = updateData.type || oldType;
     const newAccountId = updateData.accountId || oldAccountId;
 
-    // Calculate balance adjustment
-    const oldBalanceChange = oldType === TransactionType.INCOME ? oldAmount : -oldAmount;
-    const newBalanceChange = newType === TransactionType.INCOME ? newAmount : -newAmount;
+    const newAccountCurrency = (transaction.currency || 'AUD').toUpperCase();
+    const newOriginalCurrency = (updateData.originalCurrency || transaction.originalCurrency)?.toUpperCase();
+    const newOriginalAmount = updateData.originalAmount ?? transaction.originalAmount;
+    const newUseOriginal =
+      !!newOriginalAmount && !!newOriginalCurrency && newOriginalCurrency === newAccountCurrency;
+    const newEffectiveAmount = newUseOriginal
+      ? newOriginalAmount!
+      : updateData.amount ?? transaction.amount;
+
+    const oldBalanceChange =
+      oldType === TransactionType.INCOME ? oldEffectiveAmount : -oldEffectiveAmount;
+    const newBalanceChange =
+      newType === TransactionType.INCOME ? newEffectiveAmount : -newEffectiveAmount;
     const balanceAdjustment = newBalanceChange - oldBalanceChange;
 
     // Update transaction
@@ -176,13 +203,25 @@ export class TransactionMongoService {
       throw new NotFoundException('Transaction not found');
     }
 
-    // Revert account balance
-    const balanceChange = transaction.type === TransactionType.INCOME 
-      ? -transaction.amount 
-      : transaction.amount;
-    await this.accountModel.findByIdAndUpdate(transaction.accountId, {
-      $inc: { balance: balanceChange },
-    });
+    // Revert account balance in account's native currency
+    const account = await this.accountModel.findById(transaction.accountId);
+    if (account) {
+      const accountCurrency = (account.currency || 'AUD').toUpperCase();
+      const originalCurrency = transaction.originalCurrency?.toUpperCase();
+      const useOriginal =
+        !!transaction.originalAmount &&
+        !!originalCurrency &&
+        originalCurrency === accountCurrency;
+
+      const effectiveAmount = useOriginal ? transaction.originalAmount! : transaction.amount;
+
+      const balanceChange =
+        transaction.type === TransactionType.INCOME ? -effectiveAmount : effectiveAmount;
+
+      await this.accountModel.findByIdAndUpdate(transaction.accountId, {
+        $inc: { balance: balanceChange },
+      });
+    }
 
     await this.transactionModel.findByIdAndDelete(transactionId);
     return true;
@@ -252,6 +291,9 @@ export class TransactionMongoService {
       type: transaction.type,
       amount: transaction.amount,
       currency: transaction.currency,
+      originalAmount: transaction.originalAmount,
+      originalCurrency: transaction.originalCurrency,
+      exchangeRate: transaction.exchangeRate,
       date: transaction.date,
       incomeCategory: transaction.incomeCategory,
       expenseCategory: transaction.expenseCategory,

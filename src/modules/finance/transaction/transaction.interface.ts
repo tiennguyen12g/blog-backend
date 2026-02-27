@@ -11,6 +11,9 @@ export const Transaction_Create_Schema = z.object({
   type: z.nativeEnum(TransactionType),
   amount: z.number().positive('Amount must be positive'),
   currency: z.string().default('AUD').optional(),
+  originalAmount: z.number().positive().optional(),
+  originalCurrency: z.string().optional(),
+  exchangeRate: z.number().positive().optional(),
   date: z.coerce.date().optional(),
   incomeCategory: z.nativeEnum(IncomeCategory).optional(),
   expenseCategory: z.nativeEnum(ExpenseCategory).optional(),
@@ -49,6 +52,9 @@ export const Transaction_Update_Schema = z.object({
   type: z.nativeEnum(TransactionType).optional(),
   amount: z.number().positive().optional(),
   currency: z.string().optional(),
+  originalAmount: z.number().positive().optional(),
+  originalCurrency: z.string().optional(),
+  exchangeRate: z.number().positive().optional(),
   date: z.coerce.date().optional(),
   incomeCategory: z.nativeEnum(IncomeCategory).optional(),
   expenseCategory: z.nativeEnum(ExpenseCategory).optional(),
@@ -95,6 +101,9 @@ export type Transaction_Type = {
   type: TransactionType;
   amount: number;
   currency: string;
+  originalAmount?: number;
+  originalCurrency?: string;
+  exchangeRate?: number;
   date: Date;
   incomeCategory?: IncomeCategory;
   expenseCategory?: ExpenseCategory;
