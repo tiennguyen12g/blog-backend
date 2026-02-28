@@ -19,6 +19,7 @@ export const Account_Create_Schema = z.object({
  */
 export const Account_Update_Schema = z.object({
   name: z.string().min(1).max(100).optional(),
+  balance: z.number().optional(),
   description: z.string().max(500).optional(),
   isActive: z.boolean().optional(),
 });
